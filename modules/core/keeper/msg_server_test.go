@@ -943,7 +943,7 @@ func (suite *KeeperTestSuite) TestChannelUpgradeTry() {
 			func(res *channeltypes.MsgChannelUpgradeTryResponse, err error) {
 				suite.Require().NoError(err)
 				suite.Require().NotNil(res)
-				suite.Require().Equal(channeltypes.SUCCESS, res.Result)
+				suite.Require().Equal(channeltypes.SUCCESS, res.Status)
 
 				channel := path.EndpointB.GetChannel()
 				suite.Require().Equal(channeltypes.FLUSHING, channel.State)
@@ -975,7 +975,7 @@ func (suite *KeeperTestSuite) TestChannelUpgradeTry() {
 				suite.Require().NoError(err)
 
 				suite.Require().NotNil(res)
-				suite.Require().Equal(channeltypes.FAILURE, res.Result)
+				suite.Require().Equal(channeltypes.FAILURE, res.Status)
 
 				errorReceipt, found := suite.chainB.GetSimApp().GetIBCKeeper().ChannelKeeper.GetUpgradeErrorReceipt(suite.chainB.GetContext(), path.EndpointB.ChannelConfig.PortID, path.EndpointB.ChannelID)
 				suite.Require().True(found)

@@ -20,9 +20,15 @@ import (
 )
 
 var (
-	_ clienttypes.MsgServer     = (*Keeper)(nil)
-	_ connectiontypes.MsgServer = (*Keeper)(nil)
-	_ channeltypes.MsgServer    = (*Keeper)(nil)
+	_                                clienttypes.MsgServer     = (*Keeper)(nil)
+	_                                connectiontypes.MsgServer = (*Keeper)(nil)
+	_                                channeltypes.MsgServer    = (*Keeper)(nil)
+	SUCCESS_UPGRADE_INIT                                       = "SUCCESS_UPGRADE_INIT"
+	SUCCESS_UPGRADE_FLUSHING                                   = "SUCCESS_UPGRADE_FLUSHING"
+	SUCCESS_UPGRADE_FLUSHCOMPLETE                              = "SUCCESS_UPGRADE_FLUSHCOMPLETE"
+	SUCCESS_UPGRADE_COMPLETE                                   = "SUCCESS_UPGRADE_COMPLETE"
+	FAILURE_UPGRADE_CANCELLED                                  = "FAILURE_UPGRADE_CANCELLED"
+	FAILURE_COUNTERPARTY_OUT_OF_SYNC                           = "FAILURE_COUNTERPARTY_OUT_OF_SYNC"
 )
 
 // CreateClient defines a rpc handler method for MsgCreateClient.
@@ -820,7 +826,7 @@ func (k Keeper) ChannelUpgradeTry(goCtx context.Context, msg *channeltypes.MsgCh
 			keeper.EmitErrorReceiptEvent(ctx, msg.PortId, msg.ChannelId, channel, err)
 			// NOTE: a FAILURE result is returned to the client and an error receipt is written to state.
 			// This signals to the relayer to begin the cancel upgrade handshake subprotocol.
-			return &channeltypes.MsgChannelUpgradeTryResponse{Result: channeltypes.FAILURE}, nil
+			return &channeltypes.MsgChannelUpgradeTryResponse{Status: FAILURE_UPGRADE_CANCELLED}, nil
 		}
 
 		// NOTE: an error is returned to baseapp and transaction state is not committed.
@@ -839,9 +845,10 @@ func (k Keeper) ChannelUpgradeTry(goCtx context.Context, msg *channeltypes.MsgCh
 	keeper.EmitChannelUpgradeTryEvent(ctx, msg.PortId, msg.ChannelId, channel, upgrade)
 
 	return &channeltypes.MsgChannelUpgradeTryResponse{
-		Result:          channeltypes.SUCCESS,
+		Status:          SUCCESS_UPGRADE_COMPLETE,
 		Upgrade:         upgrade,
 		UpgradeSequence: channel.UpgradeSequence,
+		ChannelId:       msg.ChannelId,
 	}, nil
 }
 
