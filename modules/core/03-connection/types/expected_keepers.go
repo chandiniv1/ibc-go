@@ -15,7 +15,7 @@ type ClientKeeper interface {
 	GetClientState(ctx sdk.Context, clientID string) (exported.ClientState, bool)
 	GetClientConsensusState(ctx sdk.Context, clientID string, height exported.Height) (exported.ConsensusState, bool)
 	GetSelfConsensusState(ctx sdk.Context, height exported.Height) (exported.ConsensusState, error)
-	ValidateSelfClient(ctx sdk.Context, clientState exported.ClientState) error
+	ValidateSelfClient(ctx sdk.Context, clientState exported.ClientState, consensusState exported.ConsensusState) error
 	IterateClientStates(ctx sdk.Context, prefix []byte, cb func(string, exported.ClientState) bool)
 	ClientStore(ctx sdk.Context, clientID string) storetypes.KVStore
 }

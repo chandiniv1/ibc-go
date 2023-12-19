@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/log"
@@ -279,11 +280,15 @@ func (k Keeper) GetSelfConsensusState(ctx sdk.Context, height exported.Height) (
 // ValidateSelfClient validates the client parameters for a client of the running chain
 // This function is only used to validate the client state the counterparty stores for this chain
 // Client must be in same revision as the executing chain
-func (k Keeper) ValidateSelfClient(ctx sdk.Context, clientState exported.ClientState) error {
+func (k Keeper) ValidateSelfClient(ctx sdk.Context, clientState exported.ClientState, consensusState exported.ConsensusState) error {
 	tmClient, ok := clientState.(*ibctm.ClientState)
 	if !ok {
 		return errorsmod.Wrapf(types.ErrInvalidClient, "client must be a Tendermint client, expected: %T, got: %T",
 			&ibctm.ClientState{}, tmClient)
+	}
+
+	if tmClient.IsExpired(time.Unix(0, int64(consensusState.GetTimestamp())), ctx.BlockTime()) {
+		return types.ErrClientExpired
 	}
 
 	if !tmClient.FrozenHeight.IsZero() {

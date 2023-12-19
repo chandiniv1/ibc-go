@@ -147,69 +147,91 @@ func (suite *KeeperTestSuite) TestSetClientConsensusState() {
 func (suite *KeeperTestSuite) TestValidateSelfClient() {
 	testClientHeight := types.GetSelfHeight(suite.chainA.GetContext())
 	testClientHeight.RevisionHeight--
+	testTime := time.Date(2012, 1, 1, 0, 0, 0, 0, time.UTC)
+	testConsensusState := ibctm.NewConsensusState(testTime, commitmenttypes.NewMerkleRoot([]byte("hash")), suite.valSetHash)
 
 	testCases := []struct {
-		name        string
-		clientState exported.ClientState
-		expPass     bool
+		name           string
+		clientState    exported.ClientState
+		consensusState exported.ConsensusState
+		expPass        bool
 	}{
 		{
 			"success",
 			ibctm.NewClientState(suite.chainA.ChainID, ibctm.DefaultTrustLevel, trustingPeriod, ubdPeriod, maxClockDrift, testClientHeight, commitmenttypes.GetSDKSpecs(), ibctesting.UpgradePath),
+			suite.consensusState,
 			true,
 		},
 		{
 			"success with nil UpgradePath",
 			ibctm.NewClientState(suite.chainA.ChainID, ibctm.DefaultTrustLevel, trustingPeriod, ubdPeriod, maxClockDrift, testClientHeight, commitmenttypes.GetSDKSpecs(), nil),
+			suite.consensusState,
 			true,
 		},
 		{
 			"frozen client",
 			&ibctm.ClientState{ChainId: suite.chainA.ChainID, TrustLevel: ibctm.DefaultTrustLevel, TrustingPeriod: trustingPeriod, UnbondingPeriod: ubdPeriod, MaxClockDrift: maxClockDrift, FrozenHeight: testClientHeight, LatestHeight: testClientHeight, ProofSpecs: commitmenttypes.GetSDKSpecs(), UpgradePath: ibctesting.UpgradePath},
+			suite.consensusState,
 			false,
 		},
 		{
 			"incorrect chainID",
 			ibctm.NewClientState("gaiatestnet", ibctm.DefaultTrustLevel, trustingPeriod, ubdPeriod, maxClockDrift, testClientHeight, commitmenttypes.GetSDKSpecs(), ibctesting.UpgradePath),
+			suite.consensusState,
 			false,
 		},
 		{
 			"invalid client height",
 			ibctm.NewClientState(suite.chainA.ChainID, ibctm.DefaultTrustLevel, trustingPeriod, ubdPeriod, maxClockDrift, types.GetSelfHeight(suite.chainA.GetContext()).Increment().(types.Height), commitmenttypes.GetSDKSpecs(), ibctesting.UpgradePath),
+			suite.consensusState,
 			false,
 		},
 		{
 			"invalid client type",
 			solomachine.NewClientState(0, &solomachine.ConsensusState{PublicKey: suite.solomachine.ConsensusState().PublicKey, Diversifier: suite.solomachine.Diversifier, Timestamp: suite.solomachine.Time}),
+			suite.consensusState,
 			false,
 		},
 		{
 			"invalid client revision",
 			ibctm.NewClientState(suite.chainA.ChainID, ibctm.DefaultTrustLevel, trustingPeriod, ubdPeriod, maxClockDrift, testClientHeightRevision1, commitmenttypes.GetSDKSpecs(), ibctesting.UpgradePath),
+			suite.consensusState,
 			false,
 		},
 		{
 			"invalid proof specs",
 			ibctm.NewClientState(suite.chainA.ChainID, ibctm.DefaultTrustLevel, trustingPeriod, ubdPeriod, maxClockDrift, testClientHeight, nil, ibctesting.UpgradePath),
+			suite.consensusState,
 			false,
 		},
 		{
 			"invalid trust level",
-			ibctm.NewClientState(suite.chainA.ChainID, ibctm.Fraction{Numerator: 0, Denominator: 1}, trustingPeriod, ubdPeriod, maxClockDrift, testClientHeight, commitmenttypes.GetSDKSpecs(), ibctesting.UpgradePath), false,
+			ibctm.NewClientState(suite.chainA.ChainID, ibctm.Fraction{Numerator: 0, Denominator: 1}, trustingPeriod, ubdPeriod, maxClockDrift, testClientHeight, commitmenttypes.GetSDKSpecs(), ibctesting.UpgradePath),
+			suite.consensusState,
+			false,
 		},
 		{
 			"invalid unbonding period",
 			ibctm.NewClientState(suite.chainA.ChainID, ibctm.DefaultTrustLevel, trustingPeriod, ubdPeriod+10, maxClockDrift, testClientHeight, commitmenttypes.GetSDKSpecs(), ibctesting.UpgradePath),
+			suite.consensusState,
 			false,
 		},
 		{
 			"invalid trusting period",
 			ibctm.NewClientState(suite.chainA.ChainID, ibctm.DefaultTrustLevel, ubdPeriod+10, ubdPeriod, maxClockDrift, testClientHeight, commitmenttypes.GetSDKSpecs(), ibctesting.UpgradePath),
+			suite.consensusState,
 			false,
 		},
 		{
 			"invalid upgrade path",
 			ibctm.NewClientState(suite.chainA.ChainID, ibctm.DefaultTrustLevel, trustingPeriod, ubdPeriod, maxClockDrift, testClientHeight, commitmenttypes.GetSDKSpecs(), []string{"bad", "upgrade", "path"}),
+			suite.consensusState,
+			false,
+		},
+		{
+			"light client is expired",
+			ibctm.NewClientState(suite.chainA.ChainID, ibctm.DefaultTrustLevel, trustingPeriod, ubdPeriod, maxClockDrift, testClientHeight, commitmenttypes.GetSDKSpecs(), ibctesting.UpgradePath),
+			testConsensusState,
 			false,
 		},
 	}
@@ -218,7 +240,7 @@ func (suite *KeeperTestSuite) TestValidateSelfClient() {
 		tc := tc
 
 		suite.Run(tc.name, func() {
-			err := suite.chainA.App.GetIBCKeeper().ClientKeeper.ValidateSelfClient(suite.chainA.GetContext(), tc.clientState)
+			err := suite.chainA.App.GetIBCKeeper().ClientKeeper.ValidateSelfClient(suite.chainA.GetContext(), tc.clientState, tc.consensusState)
 			if tc.expPass {
 				suite.Require().NoError(err, "expected valid client for case: %s", tc.name)
 			} else {
